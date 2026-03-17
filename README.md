@@ -1,129 +1,199 @@
 # macOS SMB Auto-Mount
 
-Lightweight `launchd`-based template for reconnecting an SMB share on macOS after login, wake, or temporary network loss.
+A user-scope macOS utility that keeps an SMB share connected after sleep/wake and transient network drops.
 
-## Why This Exists
+This project uses a **LaunchAgent** plus a generated shell script that periodically checks whether your share is mounted and reconnects only when needed.
 
-macOS can drop SMB mounts after sleep or network interruptions. Finder reconnect behavior is inconsistent, and login items alone are usually not enough for a reliable remount workflow.
+## Why this exists
 
-This repository provides a small shell script and a LaunchAgent template that periodically checks whether an SMB share is mounted and reopens it only when needed.
+macOS can silently drop SMB mounts after sleep, Wi‑Fi roaming, or VPN/network changes. Finder can reconnect in some cases, but behavior can be inconsistent.
 
-## Features
+This utility gives you a small, transparent, and local setup that:
 
-- Uses `launchd`, the native macOS job scheduler
-- Checks mount state before reconnecting
-- Avoids hardcoded credentials in the repository
-- Keeps logs in `/tmp` for simple troubleshooting
-- Ships as editable templates for personal deployment
+- Runs in your own user session (no sudo, no system daemons).
+- Reconnects only if the target share is missing.
+- Uses `open "smb://..."` so Finder/Keychain handle credentials.
 
-## Repository Structure
+## Supported environment
 
-- `scripts/mountsmb.sh`
-  Example shell script that checks whether the SMB share is already mounted.
-- `launchd/com.example.mountsmb.plist`
-  Example LaunchAgent template that runs the script every 5 minutes.
-- `scripts/install-example.sh`
-  Optional helper script that copies the LaunchAgent template into `~/Library/LaunchAgents`.
+- macOS with `launchd` / `launchctl` (standard on macOS)
+- SMB share reachable from your machine
+- A user account with access to `~/Library/LaunchAgents`
 
-## Configuration
+## Repository layout
 
-Before using this project, edit the placeholders in the template files.
+- `install.sh` – real installer (interactive + flag-based modes)
+- `uninstall.sh` – safe uninstaller
+- `scripts/mountsmb.sh` – template example script (kept for manual/template workflow)
+- `scripts/install-example.sh` – template copy helper (legacy/template flow)
+- `launchd/com.example.mountsmb.plist` – template LaunchAgent plist
 
-In `scripts/mountsmb.sh`, update:
+## Quick start (recommended)
 
-- `SMB_URL`
-  Example: `smb://SERVER_OR_IP/SHARE_NAME`
-- `MOUNT_MATCH_REGEX`
-  Must match the SMB source shown by `/sbin/mount` after the share is connected
-- `OPEN_DELAY_SECONDS`
-  Optional startup delay before opening the SMB URL
+Run the installer from the repository root:
 
-In `launchd/com.example.mountsmb.plist`, update:
+```bash
+./install.sh
+```
 
-- `Label`
-  Replace `com.example.mountsmb` with your own reverse-DNS style identifier
-- `ProgramArguments`
-  Replace `/Users/YOUR_USERNAME/path/to/mountsmb.sh` with the real path to your deployed script
+If you do not pass all required flags, the installer prompts for the missing values.
 
-## Installation And Setup
+Generated runtime files are installed in user-safe locations:
 
-> Safety note: This setup only creates a user LaunchAgent (in `~/Library/LaunchAgents`) and does not require root access or modify system-wide launchd configuration.
+- Runtime script: `~/Library/Application Support/mountsmb/mountsmb-<label>.sh`
+- LaunchAgent plist: `~/Library/LaunchAgents/<label>.plist`
+- Logs: `~/Library/Application Support/mountsmb/logs/<label>.out.log` and `.err.log`
 
-1. Review and edit the placeholders in:
-   - `scripts/mountsmb.sh`
-   - `launchd/com.example.mountsmb.plist`
-2. Copy the script to a location you control, for example:
-   ```bash
-   mkdir -p ~/bin
-   cp scripts/mountsmb.sh ~/bin/mountsmb.sh
-   chmod +x ~/bin/mountsmb.sh
-   ```
-3. Update the plist so `ProgramArguments` points to your deployed script path.
-4. Mount the SMB share once manually in Finder or with:
-   ```bash
-   open "smb://SERVER_OR_IP/SHARE_NAME"
-   ```
-5. Save credentials to Keychain when prompted.
-6. Copy the LaunchAgent into place:
-   ```bash
-   mkdir -p ~/Library/LaunchAgents
-   cp launchd/com.example.mountsmb.plist ~/Library/LaunchAgents/
-   ```
-7. Load the LaunchAgent:
-   ```bash
-   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.example.mountsmb.plist
-   ```
+## Interactive install example
 
-## Usage And Testing
+```bash
+./install.sh
+```
 
-- Trigger the job manually:
-  ```bash
-  launchctl kickstart -k gui/$(id -u)/com.example.mountsmb
-  ```
-- Check whether the share is mounted:
-  ```bash
-  /sbin/mount | grep smbfs
-  ```
-- Unmount a share for testing if needed (**force unmount can interrupt open file operations**):
-  ```bash
-  diskutil unmount force /Volumes/SHARE_NAME
-  ```
+You will be prompted for:
 
-Note: macOS may mount the share under a different folder name than expected. The script intentionally checks the SMB source reported by `mount`, not only the local volume directory.
+- SMB server or IP
+- SMB share name
+- LaunchAgent label
+- Check interval (seconds)
+- Whether to auto-load the LaunchAgent
+- Whether to overwrite existing generated files
 
+## Flag-based install example
+
+Fully non-interactive install + load:
+
+```bash
+./install.sh \
+  --server SERVER_OR_IP \
+  --share SHARE_NAME \
+  --label com.example.mountsmb \
+  --interval 300 \
+  --load \
+  --force
+```
+
+Or use an SMB URL shortcut:
+
+```bash
+./install.sh --smb-url "smb://SERVER_OR_IP/SHARE_NAME" --label com.example.mountsmb --interval 300 --load
+```
+
+### Installer flags
+
+- `--server <server-or-ip>`
+- `--share <share-name>`
+- `--label <launchd-label>`
+- `--interval <seconds>`
+- `--smb-url <smb://server/share>`
+- `--load`
+- `--force`
+- `--help`
+
+## What the installer generates
+
+### Runtime mount script
+
+The generated script:
+
+- Builds `smb://SERVER/SHARE`
+- Checks existing mounts via `/sbin/mount`
+- Uses a generated fixed-string mount check derived from your server/share inputs
+- Calls `open "smb://SERVER/SHARE"` only if not mounted
+
+You do **not** need to hand-edit `MOUNT_MATCH_REGEX`.
+
+### LaunchAgent plist
+
+The generated plist:
+
+- Uses your requested label
+- Runs on load and at your requested interval
+- Points to your generated runtime script
+- Writes logs to your user application-support directory
+
+## Loading behavior
+
+If you choose load during install (or pass `--load`), installer attempts:
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/<label>.plist
+```
+
+If you install without load, the installer prints the exact manual load command.
 
 ## Uninstall
 
-To disable and remove the user LaunchAgent:
+Interactive/safe uninstall:
 
 ```bash
-launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.example.mountsmb.plist
-rm ~/Library/LaunchAgents/com.example.mountsmb.plist
+./uninstall.sh --label com.example.mountsmb
 ```
+
+Force uninstall without prompt:
+
+```bash
+./uninstall.sh --label com.example.mountsmb --force
+```
+
+`uninstall.sh` will:
+
+- Attempt to unload the LaunchAgent (`launchctl bootout`)
+- Remove the generated plist
+- Remove the generated runtime script
+- Remove installer metadata/log files for that label
+
+## Credentials and Keychain
+
+This project does **not** store SMB credentials in repository files.
+
+Authentication is delegated to Finder/Keychain when macOS opens the SMB URL. The first successful interactive connection can store credentials in your user keychain, after which reconnects can happen without repeated prompts.
 
 ## Troubleshooting
 
-- Review logs:
-  ```bash
-  cat /tmp/mountsmb.out
-  cat /tmp/mountsmb.err
-  ```
-- Inspect LaunchAgent state:
-  ```bash
-  launchctl print gui/$(id -u)/com.example.mountsmb
-  ```
-- Confirm your `MOUNT_MATCH_REGEX` matches the actual output from:
-  ```bash
-  /sbin/mount
-  ```
-- If the job loads but the share does not open, verify that:
-  - the SMB URL is valid
-  - credentials were saved in Keychain
-  - the deployed script path in the plist is correct
+Check LaunchAgent status:
 
-## Security And Privacy
+```bash
+launchctl print gui/$(id -u)/<label>
+```
 
-Do not commit passwords, Keychain exports, private hostnames, internal IP addresses, or personal usernames into this repository. Keep deployment-specific copies local and leave the tracked templates generic.
+Trigger a run immediately:
+
+```bash
+launchctl kickstart -k gui/$(id -u)/<label>
+```
+
+View logs:
+
+```bash
+cat "$HOME/Library/Application Support/mountsmb/logs/<label>.out.log"
+cat "$HOME/Library/Application Support/mountsmb/logs/<label>.err.log"
+```
+
+If reconnects fail:
+
+- Confirm `smb://SERVER/SHARE` is correct
+- Ensure the share is reachable on your current network
+- Verify credentials are saved and valid in Keychain
+- Run the generated runtime script manually to inspect immediate behavior
+
+## Safety and privacy notes
+
+- User scope only: installs into your home directory.
+- No `sudo` required.
+- No system-wide LaunchDaemons are created.
+- Existing generated files are not overwritten unless you confirm or pass `--force`.
+- Keep personal hosts/IPs/usernames out of committed files.
+
+## Template workflow (still available)
+
+The original template-based approach is still present:
+
+- `scripts/mountsmb.sh`
+- `launchd/com.example.mountsmb.plist`
+- `scripts/install-example.sh`
+
+Use these if you prefer manual editing and custom deployment.
 
 ## License
 
