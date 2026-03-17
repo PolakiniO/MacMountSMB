@@ -37,9 +37,9 @@ confirm() {
   while true; do
     read -r -p "$prompt [y/N]: " reply
     reply="${reply:-N}"
-    case "${reply,,}" in
-      y|yes) return 0 ;;
-      n|no) return 1 ;;
+    case "$reply" in
+      [Yy]|[Yy][Ee][Ss]) return 0 ;;
+      [Nn]|[Nn][Oo]) return 1 ;;
       *) echo "Please answer yes or no." ;;
     esac
   done
