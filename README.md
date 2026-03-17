@@ -47,6 +47,8 @@ In `launchd/com.example.mountsmb.plist`, update:
 
 ## Installation And Setup
 
+> Safety note: This setup only creates a user LaunchAgent (in `~/Library/LaunchAgents`) and does not require root access or modify system-wide launchd configuration.
+
 1. Review and edit the placeholders in:
    - `scripts/mountsmb.sh`
    - `launchd/com.example.mountsmb.plist`
@@ -82,12 +84,22 @@ In `launchd/com.example.mountsmb.plist`, update:
   ```bash
   /sbin/mount | grep smbfs
   ```
-- Unmount a share for testing if needed:
+- Unmount a share for testing if needed (**force unmount can interrupt open file operations**):
   ```bash
   diskutil unmount force /Volumes/SHARE_NAME
   ```
 
 Note: macOS may mount the share under a different folder name than expected. The script intentionally checks the SMB source reported by `mount`, not only the local volume directory.
+
+
+## Uninstall
+
+To disable and remove the user LaunchAgent:
+
+```bash
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.example.mountsmb.plist
+rm ~/Library/LaunchAgents/com.example.mountsmb.plist
+```
 
 ## Troubleshooting
 
