@@ -42,7 +42,7 @@ is_placeholder() {
   local value
   value="$(printf '%s' "$1" | /usr/bin/tr '[:upper:]' '[:lower:]')"
   case "$value" in
-    ""|server_or_ip|share_name|your_username|com.example.mountsmb|example|changeme|replace_me)
+    ""|server_or_ip|share_name|your_username|com.example.mountsmb|changeme|replace_me)
       return 0
       ;;
     *)
