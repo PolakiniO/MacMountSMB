@@ -39,7 +39,8 @@ fail() {
 }
 
 is_placeholder() {
-  local value="${1,,}"
+  local value
+  value="$(printf '%s' "$1" | /usr/bin/tr '[:upper:]' '[:lower:]')"
   case "$value" in
     ""|server_or_ip|share_name|your_username|com.example.mountsmb|example|changeme|replace_me)
       return 0
@@ -69,7 +70,7 @@ confirm() {
       reply="${reply:-N}"
     fi
 
-    case "${reply,,}" in
+    case "$(printf '%s' "$reply" | /usr/bin/tr '[:upper:]' '[:lower:]')" in
       y|yes) return 0 ;;
       n|no) return 1 ;;
       *) echo "Please answer yes or no." ;;
