@@ -38,4 +38,5 @@ Next steps:
    launchctl bootstrap gui/\$(id -u) "${TARGET_PLIST}"
 3. Test it with:
    launchctl kickstart -k gui/\$(id -u)/YOUR_LABEL
+   Replace YOUR_LABEL with your plist Label value (for example: com.example.mountsmb).
 EOF
