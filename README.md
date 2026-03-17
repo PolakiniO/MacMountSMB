@@ -1,5 +1,7 @@
 # MacMountSMB - macOS SMB Auto-Mount Utility
 
+> Keep SMB shares mounted on macOS after sleep/wake, Wi‑Fi changes, and transient network drops.
+
 A user-scope macOS utility that keeps an SMB share connected after sleep/wake and transient network drops.
 
 This project uses a **LaunchAgent** plus a generated shell script that periodically checks whether your share is mounted and reconnects only when needed.
@@ -27,6 +29,16 @@ This utility gives you a small, transparent, and local setup that:
 - `scripts/mountsmb.sh` – template example script (kept for manual/template workflow)
 - `scripts/install-example.sh` – template copy helper (legacy/template flow)
 - `launchd/com.example.mountsmb.plist` – template LaunchAgent plist
+
+## At a glance
+
+| Item | Details |
+| --- | --- |
+| Scope | User session only (`~/Library/...`) |
+| Privileges | No `sudo` required |
+| Runtime | `launchd` LaunchAgent + shell health-check script |
+| Credentials | Managed by Finder + Keychain |
+| Install modes | Interactive, flag-based, or fully manual template workflow |
 
 ## Quick start (recommended)
 
@@ -89,6 +101,84 @@ Or use an SMB URL shortcut:
 - `--load`
 - `--force`
 - `--help`
+
+## Manual custom deployment workflow
+
+If you want full control over naming, locations, or mount logic, you can deploy manually using the template files.
+
+### 1) Copy templates into your own paths
+
+```bash
+mkdir -p "$HOME/.local/mountsmb" "$HOME/Library/LaunchAgents"
+cp scripts/mountsmb.sh "$HOME/.local/mountsmb/work-share.sh"
+cp launchd/com.example.mountsmb.plist "$HOME/Library/LaunchAgents/com.acme.work-share.mountsmb.plist"
+```
+
+### 2) Edit your mount script
+
+Open `~/.local/mountsmb/work-share.sh` and set your target SMB URL and match logic.
+
+Example customization:
+
+```bash
+SMB_URL="smb://fileserver.local/Engineering"
+MOUNT_MATCH_REGEX='//[^@]+@fileserver\.local/Engineering on '
+```
+
+Then make the script executable:
+
+```bash
+chmod +x "$HOME/.local/mountsmb/work-share.sh"
+```
+
+### 3) Edit your LaunchAgent plist
+
+Update at least these keys in `~/Library/LaunchAgents/com.acme.work-share.mountsmb.plist`:
+
+- `Label` (must be unique, e.g. `com.acme.work-share.mountsmb`)
+- `ProgramArguments` (point to your custom script path)
+- `StartInterval` (example: `120` for every 2 minutes)
+- `StandardOutPath` and `StandardErrorPath` (optional but strongly recommended)
+
+### 4) Validate and load
+
+```bash
+plutil -lint "$HOME/Library/LaunchAgents/com.acme.work-share.mountsmb.plist"
+launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.acme.work-share.mountsmb.plist"
+launchctl kickstart -k gui/$(id -u)/com.acme.work-share.mountsmb
+```
+
+### 5) Verify behavior
+
+```bash
+launchctl print gui/$(id -u)/com.acme.work-share.mountsmb
+tail -f "$HOME/Library/Application Support/mountsmb/logs/com.acme.work-share.mountsmb.out.log"
+```
+
+---
+
+### Custom deployment examples
+
+#### Example A: Fast retry for unstable Wi‑Fi
+
+- `StartInterval`: `45`
+- Use when laptop frequently moves between APs
+- Expect slightly more background checks
+
+#### Example B: Quiet office profile
+
+- `StartInterval`: `300`
+- Lower background activity
+- Good default for stable networks
+
+#### Example C: Multiple shares (one agent per share)
+
+Create one script + one LaunchAgent plist per share:
+
+- `com.acme.mountsmb.design`
+- `com.acme.mountsmb.finance`
+
+This isolates failures and makes per-share intervals/logs easier to tune.
 
 ## What the installer generates
 
