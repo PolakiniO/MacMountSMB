@@ -1,4 +1,4 @@
-# macOS SMB Auto-Mount
+# MacMountSMB - macOS SMB Auto-Mount Utility
 
 A user-scope macOS utility that keeps an SMB share connected after sleep/wake and transient network drops.
 
