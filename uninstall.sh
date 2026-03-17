@@ -90,10 +90,18 @@ if [[ "$FORCE" != "true" ]]; then
   fi
 fi
 
+echo "Starting uninstall for label: ${LABEL}"
+
 if command -v launchctl >/dev/null 2>&1; then
   launchctl bootout "gui/$(id -u)/${LABEL}" >/dev/null 2>&1 || true
+  echo "LaunchAgent unloaded (if it was loaded)."
+else
+  echo "launchctl unavailable; skipped LaunchAgent unload step."
 fi
 
 rm -f "$PLIST_PATH" "$SCRIPT_PATH" "$META_PATH" "$LOG_OUT" "$LOG_ERR"
 
-echo "Removed LaunchAgent and generated files for label: ${LABEL}"
+echo ""
+echo "✅ Uninstall complete for ${LABEL}."
+echo "Removed generated runtime script, LaunchAgent plist, metadata, and logs."
+echo "No further automatic SMB mount checks will run for this label."

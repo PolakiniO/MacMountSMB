@@ -183,6 +183,9 @@ fi
 
 mkdir -p "$APP_SUPPORT_DIR" "$LAUNCH_AGENTS_DIR" "$APP_SUPPORT_DIR/logs"
 
+echo "Preparing installation for label: ${LABEL}"
+echo "Target SMB share: smb://${SERVER}/${SHARE}"
+
 SCRIPT_PATH="${APP_SUPPORT_DIR}/mountsmb-${LABEL}.sh"
 PLIST_PATH="${LAUNCH_AGENTS_DIR}/${LABEL}.plist"
 LOG_OUT="${APP_SUPPORT_DIR}/logs/${LABEL}.out.log"
@@ -278,6 +281,10 @@ else
   echo "Load manually with: launchctl bootstrap gui/$(id -u) \"${PLIST_PATH}\""
 fi
 
+echo ""
+echo "✅ Setup complete for ${LABEL}."
+echo "From now on, launchd will run this helper every ${INTERVAL} seconds to keep the share mounted when needed."
+echo "If the share is not mounted, macOS will attempt to open smb://${SERVER}/${SHARE}."
 echo "Runtime script: ${SCRIPT_PATH}"
 echo "LaunchAgent plist: ${PLIST_PATH}"
 echo "Logs: ${LOG_OUT}, ${LOG_ERR}"
