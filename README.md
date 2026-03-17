@@ -8,12 +8,28 @@ macOS can drop SMB mounts after sleep or network interruptions. Finder reconnect
 
 This repository provides a small shell script and a LaunchAgent template that periodically checks whether an SMB share is mounted and reopens it only when needed.
 
+## Prerequisites
+
+- macOS only
+- Uses a per-user `LaunchAgent`, not a system `LaunchDaemon`
+- Requires a logged-in GUI user session
+- Relies on Finder-style `open` behavior and macOS Keychain for saved SMB credentials
+- Intended for SMB shares
+
+## Quick Start
+
+1. Edit the placeholders in `scripts/mountsmb.sh` and `launchd/com.example.mountsmb.plist`
+2. Save SMB credentials once via Finder or:
+   `open "smb://SERVER_OR_IP/SHARE_NAME"`
+3. Copy the plist to `~/Library/LaunchAgents/`
+4. Load it with `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.example.mountsmb.plist`
+
 ## Features
 
 - Uses `launchd`, the native macOS job scheduler
 - Checks mount state before reconnecting
 - Avoids hardcoded credentials in the repository
-- Keeps logs in `/tmp` for simple troubleshooting
+- Keeps logs in `~/Library/Logs` for simple troubleshooting
 - Ships as editable templates for personal deployment
 
 ## Repository Structure
@@ -29,10 +45,21 @@ This repository provides a small shell script and a LaunchAgent template that pe
 
 Before using this project, edit the placeholders in the template files.
 
+Example configuration:
+
+```text
+scripts/mountsmb.sh
+  SMB_URL="smb://fileserver.example.com/Shared"
+  MOUNT_MATCH_REGEX='^//.*@fileserver\.example\.com/Shared on /Volumes/'
+
+launchd/com.example.mountsmb.plist
+  Label: com.example.mountsmb
+```
+
 In `scripts/mountsmb.sh`, update:
 
 - `SMB_URL`
-  Example: `smb://SERVER_OR_IP/SHARE_NAME`
+  Example: `smb://fileserver.example.com/Shared`
 - `MOUNT_MATCH_REGEX`
   Must match the SMB source shown by `/sbin/mount` after the share is connected
 - `OPEN_DELAY_SECONDS`
@@ -44,6 +71,10 @@ In `launchd/com.example.mountsmb.plist`, update:
   Replace `com.example.mountsmb` with your own reverse-DNS style identifier
 - `ProgramArguments`
   Replace `/Users/YOUR_USERNAME/path/to/mountsmb.sh` with the real path to your deployed script
+- `StandardOutPath` and `StandardErrorPath`
+  Replace `/Users/YOUR_USERNAME/...` with your real home path so logs stay in your user-scoped `~/Library/Logs` directory
+
+Important: the label you use with `launchctl kickstart` must exactly match the plist `Label` value.
 
 ## Installation And Setup
 
@@ -56,18 +87,31 @@ In `launchd/com.example.mountsmb.plist`, update:
    cp scripts/mountsmb.sh ~/bin/mountsmb.sh
    chmod +x ~/bin/mountsmb.sh
    ```
+   Or run it directly without changing permissions:
+   ```bash
+   zsh scripts/mountsmb.sh
+   ```
 3. Update the plist so `ProgramArguments` points to your deployed script path.
-4. Mount the SMB share once manually in Finder or with:
+4. Update the plist log paths so they point to your real home directory, for example:
+   ```text
+   /Users/YOUR_USERNAME/Library/Logs/mountsmb.out
+   /Users/YOUR_USERNAME/Library/Logs/mountsmb.err
+   ```
+5. Create the log directory if needed:
+   ```bash
+   mkdir -p ~/Library/Logs
+   ```
+6. Mount the SMB share once manually in Finder or with:
    ```bash
    open "smb://SERVER_OR_IP/SHARE_NAME"
    ```
-5. Save credentials to Keychain when prompted.
-6. Copy the LaunchAgent into place:
+7. Save credentials to Keychain when prompted.
+8. Copy the LaunchAgent into place:
    ```bash
    mkdir -p ~/Library/LaunchAgents
    cp launchd/com.example.mountsmb.plist ~/Library/LaunchAgents/
    ```
-7. Load the LaunchAgent:
+9. Load the LaunchAgent:
    ```bash
    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.example.mountsmb.plist
    ```
@@ -78,14 +122,17 @@ In `launchd/com.example.mountsmb.plist`, update:
   ```bash
   launchctl kickstart -k gui/$(id -u)/com.example.mountsmb
   ```
+  Replace `com.example.mountsmb` with the exact `Label` value from your plist.
 - Check whether the share is mounted:
   ```bash
   /sbin/mount | grep smbfs
   ```
 - Unmount a share for testing if needed:
   ```bash
-  diskutil unmount force /Volumes/SHARE_NAME
+  diskutil unmount /Volumes/SHARE_NAME
   ```
+
+Warning: use `diskutil unmount force /Volumes/SHARE_NAME` only if the share is idle and you understand the risk of interrupting active file access.
 
 Note: macOS may mount the share under a different folder name than expected. The script intentionally checks the SMB source reported by `mount`, not only the local volume directory.
 
@@ -93,8 +140,8 @@ Note: macOS may mount the share under a different folder name than expected. The
 
 - Review logs:
   ```bash
-  cat /tmp/mountsmb.out
-  cat /tmp/mountsmb.err
+  cat ~/Library/Logs/mountsmb.out
+  cat ~/Library/Logs/mountsmb.err
   ```
 - Inspect LaunchAgent state:
   ```bash
