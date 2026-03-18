@@ -48,7 +48,10 @@ resolve_label() {
 print_deployments() {
   local meta_files meta_path label server share interval state_path run_count last_result
 
-  mapfile -t meta_files < <(find_meta_files)
+  meta_files=()
+  while IFS= read -r meta_path; do
+    [[ -n "$meta_path" ]] && meta_files+=("$meta_path")
+  done < <(find_meta_files)
 
   if [[ ${#meta_files[@]} -eq 0 ]]; then
     echo "No MacMountSMB deployments found in ${APP_SUPPORT_DIR}."
