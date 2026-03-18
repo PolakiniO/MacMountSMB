@@ -9,6 +9,8 @@
 
 Keep SMB drives mounted across sleep, Wi-Fi changes, and VPN reconnects.
 
+Designed for developers who are tired of reconnecting SMB shares manually.
+
 No sudo. No system daemons. Fully reversible.
 
 ---
@@ -25,9 +27,9 @@ Full install and clean uninstall flow in seconds:
 
 If you've worked with SMB on macOS, you’ve probably seen this:
 
-- Sleep → mount disappears
-- Wi-Fi changes → disconnected
-- VPN connects → gone again
+- Sleep → mount disappears  
+- Wi-Fi changes → disconnected  
+- VPN connects → gone again  
 
 Now you're back to manually reconnecting instead of working.
 
@@ -41,10 +43,10 @@ This is one of those problems that shouldn't exist - but does.
 
 MacMountSMB runs a lightweight background check in your user session:
 
-- Uses `launchd` through a LaunchAgent
-- Checks whether your SMB share is mounted
-- Reconnects only if needed
-- Uses macOS native SMB handling through `open "smb://..."`
+- Uses `launchd` through a LaunchAgent  
+- Checks whether your SMB share is mounted  
+- Reconnects only if needed  
+- Uses macOS native SMB handling through `open "smb://..."`  
 
 No hacks. No credential handling. No system changes.
 
@@ -53,7 +55,7 @@ No hacks. No credential handling. No system changes.
 ## Key Features
 
 - User-scope only, with no sudo and no system daemons  
-- Smart reconnect triggered only when the share is missing
+- Smart reconnect triggered only when the share is missing  
 - Native macOS integration through Finder and Keychain  
 - Interactive and flag-based installation  
 - Clean uninstall with no leftover generated artifacts  
