@@ -157,11 +157,13 @@ Generated runtime files are installed in user-safe locations:
 ## Status
 
 ```bash
+./status.sh --list
 ./status.sh --label com.example.mountsmb
 ```
 
-The status command shows:
+The status command can either list deployments or inspect one specific label. It shows:
 
+- Existing deployments, including labels, shares, intervals, and last results
 - Current configured server/share and paths
 - Whether the LaunchAgent appears loaded
 - Last recorded run result and details
