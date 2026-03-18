@@ -5,7 +5,7 @@
 [![Status](https://img.shields.io/badge/status-stable-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-> Automatically reconnect SMB shares on macOS. No friction. Just stays mounted.
+> Automatically reconnect SMB shares on macOS. No friction. Just works.
 
 Keep SMB drives mounted across sleep, Wi-Fi changes, and VPN reconnects.
 
@@ -15,7 +15,7 @@ No sudo. No system daemons. Fully reversible.
 
 ## Demo
 
-Full install + clean uninstall flow:
+Full install and clean uninstall flow in seconds:
 
 ![Demo](./Assets/MacMountSMB_Demo.png)
 
@@ -32,6 +32,8 @@ If you've worked with SMB on macOS, you’ve probably seen this:
 Now you're back to manually reconnecting instead of working.
 
 MacMountSMB fixes that.
+
+This is one of those problems that shouldn't exist - but does.
 
 ---
 
@@ -51,7 +53,7 @@ No hacks. No credential handling. No system changes.
 ## Key Features
 
 - User-scope only, with no sudo and no system daemons  
-- Smart reconnect that runs only when needed  
+- Smart reconnect triggered only when the share is missing
 - Native macOS integration through Finder and Keychain  
 - Interactive and flag-based installation  
 - Clean uninstall with no leftover generated artifacts  
@@ -203,6 +205,14 @@ cat "$HOME/Library/Application Support/mountsmb/logs/<label>.err.log"
 - Custom intervals  
 - Template-based workflows  
 - Manual LaunchAgent control  
+
+---
+
+## Feedback
+
+Found an edge case? Something not working as expected?
+
+Open an issue or drop feedback - this tool is built for real-world usage.
 
 ---
 
