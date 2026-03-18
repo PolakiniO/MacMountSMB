@@ -60,6 +60,7 @@ No hacks. No credential handling. No system changes.
 - Interactive and flag-based installation  
 - Clean uninstall with no leftover generated artifacts  
 - Logs and debug support  
+- Built-in status command for config, run history, and scheduling insights  
 
 ---
 
@@ -152,6 +153,23 @@ Generated runtime files are installed in user-safe locations:
   - `~/Library/Application Support/mountsmb/logs/<label>.err.log`  
 
 ---
+
+## Status
+
+```bash
+./status.sh --label com.example.mountsmb
+```
+
+The status command shows:
+
+- Current configured server/share and paths
+- Whether the LaunchAgent appears loaded
+- Last recorded run result and details
+- Total recorded run count
+- Estimated next run time based on the configured interval
+- Recent stdout/stderr log output
+
+If you omit `--label`, the most recently installed label is used.
 
 ## Uninstall
 

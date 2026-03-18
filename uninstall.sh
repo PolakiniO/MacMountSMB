@@ -82,6 +82,7 @@ PLIST_PATH="${LAUNCH_AGENTS_DIR}/${LABEL}.plist"
 META_PATH="${APP_SUPPORT_DIR}/install-meta-${LABEL}.conf"
 LOG_OUT="${APP_SUPPORT_DIR}/logs/${LABEL}.out.log"
 LOG_ERR="${APP_SUPPORT_DIR}/logs/${LABEL}.err.log"
+STATE_PATH="${APP_SUPPORT_DIR}/state/${LABEL}.state"
 
 if [[ "$FORCE" != "true" ]]; then
   if ! confirm "Remove LaunchAgent ${LABEL} and generated files?"; then
@@ -99,9 +100,9 @@ else
   echo "launchctl unavailable; skipped LaunchAgent unload step."
 fi
 
-rm -f "$PLIST_PATH" "$SCRIPT_PATH" "$META_PATH" "$LOG_OUT" "$LOG_ERR"
+rm -f "$PLIST_PATH" "$SCRIPT_PATH" "$META_PATH" "$LOG_OUT" "$LOG_ERR" "$STATE_PATH"
 
 echo ""
 echo "✅ Uninstall complete for ${LABEL}."
-echo "Removed generated runtime script, LaunchAgent plist, metadata, and logs."
+echo "Removed generated runtime script, LaunchAgent plist, metadata, state, and logs."
 echo "No further automatic SMB mount checks will run for this label."
