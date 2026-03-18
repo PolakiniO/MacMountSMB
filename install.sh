@@ -181,7 +181,7 @@ if [[ "$LOAD_AGENT" != "true" && -t 0 ]]; then
   fi
 fi
 
-mkdir -p "$APP_SUPPORT_DIR" "$LAUNCH_AGENTS_DIR" "$APP_SUPPORT_DIR/logs"
+mkdir -p "$APP_SUPPORT_DIR" "$LAUNCH_AGENTS_DIR" "$APP_SUPPORT_DIR/logs" "$APP_SUPPORT_DIR/state"
 
 echo "Preparing installation for label: ${LABEL}"
 echo "Target SMB share: smb://${SERVER}/${SHARE}"
@@ -191,6 +191,7 @@ PLIST_PATH="${LAUNCH_AGENTS_DIR}/${LABEL}.plist"
 LOG_OUT="${APP_SUPPORT_DIR}/logs/${LABEL}.out.log"
 LOG_ERR="${APP_SUPPORT_DIR}/logs/${LABEL}.err.log"
 META_PATH="${APP_SUPPORT_DIR}/install-meta-${LABEL}.conf"
+STATE_PATH="${APP_SUPPORT_DIR}/state/${LABEL}.state"
 
 if [[ -e "$SCRIPT_PATH" || -e "$PLIST_PATH" ]]; then
   if [[ "$FORCE" != "true" ]]; then
@@ -214,13 +215,44 @@ SMB_SHARE=$(printf '%q' "$SHARE")
 SMB_URL="smb://\${SMB_SERVER}/\${SMB_SHARE}"
 MOUNT_NEEDLE="@\${SMB_SERVER}/\${SMB_SHARE} on /Volumes/"
 OPEN_DELAY_SECONDS=3
+STATE_PATH=$(printf '%q' "$STATE_PATH")
+
+record_state() {
+  local result="\$1"
+  local details="\$2"
+  local now_epoch now_iso run_count tmp_state
+
+  now_epoch="\$(date +%s)"
+  now_iso="\$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  run_count=1
+
+  if [[ -f "\$STATE_PATH" ]]; then
+    # shellcheck disable=SC1090
+    source "\$STATE_PATH"
+    if [[ "\${RUN_COUNT:-}" =~ ^[0-9]+$ ]]; then
+      run_count=\$((RUN_COUNT + 1))
+    fi
+  fi
+
+  tmp_state="\${STATE_PATH}.tmp"
+  cat > "\$tmp_state" <<STATE
+RUN_COUNT=\${run_count}
+LAST_RUN_EPOCH=\${now_epoch}
+LAST_RUN_AT=\${now_iso}
+LAST_RESULT=\${result}
+LAST_DETAILS=\$(printf '%q' "\$details")
+STATE
+  mv "\$tmp_state" "\$STATE_PATH"
+}
 
 if /sbin/mount | /usr/bin/grep -Fq "\${MOUNT_NEEDLE}"; then
+  record_state "already-mounted" "Share already mounted; no reconnect needed."
   exit 0
 fi
 
 /bin/sleep "\${OPEN_DELAY_SECONDS}"
 /usr/bin/open "\${SMB_URL}"
+record_state "reconnect-triggered" "Share missing; requested macOS to open \${SMB_URL}."
 SCRIPT
 chmod 700 "$SCRIPT_PATH"
 
@@ -254,13 +286,15 @@ cat > "$PLIST_PATH" <<PLIST
 PLIST
 
 cat > "$META_PATH" <<META
-LABEL=${LABEL}
-SERVER=${SERVER}
-SHARE=${SHARE}
-SCRIPT_PATH=${SCRIPT_PATH}
-PLIST_PATH=${PLIST_PATH}
-LOG_OUT=${LOG_OUT}
-LOG_ERR=${LOG_ERR}
+LABEL=$(printf '%q' "$LABEL")
+SERVER=$(printf '%q' "$SERVER")
+SHARE=$(printf '%q' "$SHARE")
+INTERVAL=$(printf '%q' "$INTERVAL")
+SCRIPT_PATH=$(printf '%q' "$SCRIPT_PATH")
+PLIST_PATH=$(printf '%q' "$PLIST_PATH")
+LOG_OUT=$(printf '%q' "$LOG_OUT")
+LOG_ERR=$(printf '%q' "$LOG_ERR")
+STATE_PATH=$(printf '%q' "$STATE_PATH")
 META
 chmod 600 "$META_PATH"
 
@@ -287,4 +321,6 @@ echo "From now on, launchd will run this helper every ${INTERVAL} seconds to kee
 echo "If the share is not mounted, macOS will attempt to open smb://${SERVER}/${SHARE}."
 echo "Runtime script: ${SCRIPT_PATH}"
 echo "LaunchAgent plist: ${PLIST_PATH}"
+echo "State file: ${STATE_PATH}"
 echo "Logs: ${LOG_OUT}, ${LOG_ERR}"
+echo "Check status with: ./status.sh --label ${LABEL}"
