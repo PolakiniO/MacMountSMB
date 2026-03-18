@@ -6,15 +6,18 @@ APP_SUPPORT_DIR="${HOME}/Library/Application Support/${APP_NAME}"
 LAUNCH_AGENTS_DIR="${HOME}/Library/LaunchAgents"
 
 LABEL=""
+LIST_ONLY="false"
 
 usage() {
   cat <<'USAGE'
 Usage: ./status.sh [options]
 
-Shows the current MacMountSMB configuration and runtime status for one label.
+Shows the current MacMountSMB configuration and runtime status for one label,
+or lists all existing deployments.
 
 Options:
   --label <launchd-label>   LaunchAgent label to inspect
+  --list                    List existing deployments
   --help                    Show this help
 USAGE
 }
@@ -24,18 +27,64 @@ fail() {
   exit 1
 }
 
+find_meta_files() {
+  find "$APP_SUPPORT_DIR" -maxdepth 1 -name 'install-meta-*.conf' -type f -print 2>/dev/null | sort
+}
+
 resolve_label() {
   if [[ -n "$LABEL" ]]; then
     return
   fi
 
   local latest_meta
-  latest_meta=$(find "$APP_SUPPORT_DIR" -maxdepth 1 -name 'install-meta-*.conf' -type f -print 2>/dev/null | sort | tail -n1 || true)
+  latest_meta=$(find_meta_files | tail -n1 || true)
   if [[ -n "$latest_meta" ]]; then
     # shellcheck disable=SC1090
     source "$latest_meta"
     LABEL="${LABEL:-}"
   fi
+}
+
+print_deployments() {
+  local meta_files meta_path label server share interval state_path run_count last_result
+
+  mapfile -t meta_files < <(find_meta_files)
+
+  if [[ ${#meta_files[@]} -eq 0 ]]; then
+    echo "No MacMountSMB deployments found in ${APP_SUPPORT_DIR}."
+    return
+  fi
+
+  printf 'Existing MacMountSMB deployments\n'
+  printf '===============================\n'
+
+  for meta_path in "${meta_files[@]}"; do
+    unset LABEL SERVER SHARE INTERVAL STATE_PATH RUN_COUNT LAST_RESULT LAST_RUN_AT LAST_RUN_EPOCH LAST_DETAILS SCRIPT_PATH PLIST_PATH LOG_OUT LOG_ERR
+    # shellcheck disable=SC1090
+    source "$meta_path"
+
+    label="${LABEL:-unknown}"
+    server="${SERVER:-unknown}"
+    share="${SHARE:-unknown}"
+    interval="${INTERVAL:-unknown}"
+    state_path="${STATE_PATH:-}"
+    run_count=0
+    last_result="never-run"
+
+    if [[ -n "$state_path" && -f "$state_path" ]]; then
+      # shellcheck disable=SC1090
+      source "$state_path"
+      run_count="${RUN_COUNT:-0}"
+      last_result="${LAST_RESULT:-never-run}"
+    fi
+
+    printf '\nLabel:        %s\n' "$label"
+    printf 'Share:        smb://%s/%s\n' "$server" "$share"
+    printf 'Interval:     %s seconds\n' "$interval"
+    printf 'Run count:    %s\n' "$run_count"
+    printf 'Last result:  %s\n' "$last_result"
+    printf 'Inspect with: ./status.sh --label %s\n' "$label"
+  done
 }
 
 format_epoch_utc() {
@@ -54,6 +103,10 @@ while [[ $# -gt 0 ]]; do
       LABEL="$2"
       shift 2
       ;;
+    --list)
+      LIST_ONLY="true"
+      shift
+      ;;
     --help|-h)
       usage
       exit 0
@@ -64,8 +117,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ "$LIST_ONLY" == "true" ]]; then
+  print_deployments
+  exit 0
+fi
+
 resolve_label
-[[ -n "$LABEL" ]] || fail "Could not determine label. Pass --label explicitly."
+[[ -n "$LABEL" ]] || fail "Could not determine label. Pass --label explicitly, or use --list."
 
 META_PATH="${APP_SUPPORT_DIR}/install-meta-${LABEL}.conf"
 PLIST_PATH="${LAUNCH_AGENTS_DIR}/${LABEL}.plist"
