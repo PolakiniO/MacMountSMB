@@ -3,6 +3,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS-black)](#)
 [![Language](https://img.shields.io/badge/language-Shell-89e051)](#)
 [![Status](https://img.shields.io/badge/status-stable-brightgreen)](#)
+[![Views](https://visitor-badge.laobi.icu/badge?page_id=MacMountSMB.readme)](#)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 ```text
